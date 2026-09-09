@@ -7,7 +7,11 @@ import type {
 import { useNavigate } from "@tanstack/react-router";
 import { type MouseEvent, useCallback } from "react";
 
-import { pullRequestHostOf, type SourceControlProviderKind } from "@t3tools/contracts";
+import {
+  pullRequestHostOf,
+  pullRequestRepositoryOf,
+  type SourceControlProviderKind,
+} from "@t3tools/contracts";
 
 import { useOpenLink } from "../browser/useOpenLink";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
@@ -200,6 +204,10 @@ function claim(host: string, match: RegExpExecArray | null): ChangeRequestLink |
  * identity is the full path below the host where one was recorded — which is what nested GitLab
  * groups and Azure project paths need — and the host is the first segment of the canonical
  * remote, so github.com and an Enterprise install stay apart.
+ *
+ * An Azure DevOps link carries the `org/project/_git/repo` path, which is the identity's
+ * `displayName`; the name the provider is asked for is shorter, so the URL is compared against
+ * the recorded path here and the selector is read separately.
  */
 export function findProjectForChangeRequest(
   projects: ReadonlyArray<EnvironmentProject>,
@@ -219,6 +227,18 @@ export function findProjectForChangeRequest(
       pullRequestHostOf(identity, kind) === link.host.toLowerCase()
     );
   });
+}
+
+/**
+ * The repository the page asks the provider for, given a project a link was matched to. The
+ * server refuses any other spelling, so this is what every reference built on the client carries;
+ * the link's own path only stands in where the project recorded no identity to read.
+ */
+export function changeRequestRepositoryOf(
+  project: Pick<EnvironmentProject, "repositoryIdentity">,
+  link: Pick<ChangeRequestLink, "repository">,
+): string {
+  return pullRequestRepositoryOf(project.repositoryIdentity) ?? link.repository;
 }
 
 /**
@@ -297,7 +317,7 @@ export function useOpenChangeRequestLink(
           projectId: project.id,
           // The identity's own spelling, not the one read out of the URL: the panel asks the
           // provider for this repository, while matching a link only ever compares lower case.
-          repository: project.repositoryIdentity?.displayName ?? parsed.repository,
+          repository: changeRequestRepositoryOf(project, parsed),
           number: parsed.number,
         });
         if (!resolvedThreadRef) {
@@ -307,7 +327,7 @@ export function useOpenChangeRequestLink(
               ...previous,
               involvement: previous.involvement ?? "all",
               state: previous.state ?? "all",
-              repository: project.repositoryIdentity?.displayName ?? parsed.repository,
+              repository: changeRequestRepositoryOf(project, parsed),
               number: parsed.number,
               selectedProjectId: project.id,
               selectedEnvironmentId: project.environmentId,
@@ -324,7 +344,7 @@ export function useOpenChangeRequestLink(
           // Every state, so the pull request being opened is also in the list behind it whether
           // it is open, merged or closed.
           state: "all",
-          repository: parsed.repository,
+          repository: changeRequestRepositoryOf(project, parsed),
           number: parsed.number,
           selectedProjectId: project.id,
           // Named so the page opens the right one of two servers holding this project.

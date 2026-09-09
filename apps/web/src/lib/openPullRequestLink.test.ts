@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  changeRequestRepositoryOf,
   changeRequestRepositoryUrl,
   findProjectForChangeRequest,
   gitHubPullRequestBrowserUrl,
@@ -336,6 +337,44 @@ describe("findProjectForChangeRequest", () => {
         number: 1,
       }),
     ).toBeUndefined();
+  });
+
+  it("matches an Azure DevOps link by its project path, then names the repository alone", () => {
+    // The URL and the identity both carry `org/project/_git/repo`, so that is what the match
+    // compares. The server refuses that path as a repository, though: `az repos` takes the bare
+    // name, and a reference carrying the path was answered with "does not belong to the project".
+    const projects = [
+      project({
+        canonicalKey: "dev.azure.com/contoso/payments/_git/checkout",
+        provider: "azure-devops",
+        displayName: "contoso/payments/_git/checkout",
+        owner: "contoso",
+        name: "checkout",
+      }),
+    ];
+    const link = parseChangeRequestUrl(
+      "https://dev.azure.com/contoso/payments/_git/checkout/pullrequest/42",
+    );
+    expect(link).not.toBeNull();
+    const matched = findProjectForChangeRequest(projects, link!);
+    expect(matched).toBe(projects[0]);
+    expect(changeRequestRepositoryOf(matched!, link!)).toBe("checkout");
+  });
+
+  it("hands the panel the identity's own spelling, and the link's only without one", () => {
+    const identity = {
+      canonicalKey: "gitlab.com/t3tools/platform/t3code",
+      provider: "gitlab",
+      displayName: "T3Tools/Platform/T3Code",
+    };
+    expect(
+      changeRequestRepositoryOf(project(identity), { repository: "t3tools/platform/t3code" }),
+    ).toBe("T3Tools/Platform/T3Code");
+    expect(
+      changeRequestRepositoryOf({ repositoryIdentity: null } as never, {
+        repository: "t3tools/platform/t3code",
+      }),
+    ).toBe("t3tools/platform/t3code");
   });
 
   it("claims nothing for a lookalike host, which is what keeps a link a link", () => {

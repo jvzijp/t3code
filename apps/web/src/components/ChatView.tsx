@@ -39,6 +39,7 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   ProviderInteractionMode,
   ProviderDriverKind,
+  pullRequestRepositoryOf,
   resolveEnvironmentMachineKind,
   RuntimeMode,
   TerminalOpenInput,
@@ -4138,7 +4139,7 @@ export default function ChatView(props: ChatViewProps) {
   const activeThreadMetadata = activeThreadShell ?? activeThread;
   const linkedThreadPullRequest =
     activeThreadMetadata?.linkedPullRequest ?? activeThreadMetadata?.branchPullRequest ?? null;
-  const activeProjectRepository = activeProject?.repositoryIdentity?.displayName ?? null;
+  const activeProjectRepository = pullRequestRepositoryOf(activeProject?.repositoryIdentity);
   const linkedThreadPullRequestKey = linkedThreadPullRequest
     ? JSON.stringify([
         linkedThreadPullRequest.projectId,

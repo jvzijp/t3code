@@ -1096,6 +1096,39 @@ export function pullRequestHostOf(
 }
 
 /**
+ * The provider-native repository selector for a project's identity. `displayName` is the full
+ * path below the host, which is what nested GitLab groups need; owner/name is the two-segment
+ * fallback for identities recorded before that field existed.
+ *
+ * Azure DevOps is the exception: `az repos pr list --repository` takes a repository name, and
+ * takes the organisation and project from the checkout it detects — so the recorded
+ * `org/project/_git/repo` path is refused outright. Its name is the last segment.
+ *
+ * Shared between the server and the clients because the server checks every request's
+ * repository against this before handing it to a provider: a client that spells the repository
+ * any other way is told the change request does not belong to the project.
+ */
+export function pullRequestRepositoryOf(
+  identity:
+    | {
+        readonly provider?: string | undefined;
+        readonly displayName?: string | undefined;
+        readonly owner?: string | undefined;
+        readonly name?: string | undefined;
+      }
+    | null
+    | undefined,
+): string | null {
+  if (!identity) return null;
+  if (identity.provider === "azure-devops") {
+    const segments = (identity.displayName ?? "").split("/").filter((part) => part !== "_git");
+    return identity.name || segments.at(-1) || null;
+  }
+  if (identity.displayName) return identity.displayName;
+  return identity.owner && identity.name ? `${identity.owner}/${identity.name}` : null;
+}
+
+/**
  * `author:me` names whoever is signed in to the host being read, GitHub's `@me` spelled either
  * way. A host's own search would answer it, but the page and the server both re-check an author
  * against the row's login, so the name is resolved before either comparison rather than being

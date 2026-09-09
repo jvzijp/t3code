@@ -7,6 +7,7 @@ import {
   PullRequestListInput,
   PullRequestListResult,
   PullRequestReviewerRequestInput,
+  pullRequestRepositoryOf,
   resolvePullRequestAuthorFilter,
 } from "./pullRequest.ts";
 
@@ -254,5 +255,48 @@ describe("naming the reader as the author to narrow by", () => {
   it("stands as typed where the host has not said who the reader is", () => {
     expect(resolvePullRequestAuthorFilter("me", null)).toBe("me");
     expect(resolvePullRequestAuthorFilter("me", "  ")).toBe("me");
+  });
+});
+
+describe("pullRequestRepositoryOf", () => {
+  it("names an Azure DevOps repository by its own name, not its project path", () => {
+    // `az repos pr list --repository` takes a name and detects the organisation and project from
+    // the checkout; the recorded `org/project/_git/repo` path is refused.
+    expect(
+      pullRequestRepositoryOf({
+        provider: "azure-devops",
+        displayName: "contoso/payments/_git/checkout",
+        owner: "contoso",
+        name: "checkout",
+      }),
+    ).toBe("checkout");
+  });
+
+  it("falls back to the path's last segment where an Azure identity has no name", () => {
+    expect(
+      pullRequestRepositoryOf({
+        provider: "azure-devops",
+        displayName: "contoso/payments/_git/checkout",
+      }),
+    ).toBe("checkout");
+  });
+
+  it("keeps a GitLab identity's whole path, because a nested group is part of the name", () => {
+    expect(
+      pullRequestRepositoryOf({
+        provider: "gitlab",
+        displayName: "group/subgroup/service",
+        owner: "group",
+        name: "service",
+      }),
+    ).toBe("group/subgroup/service");
+  });
+
+  it("builds owner/name for identities recorded before displayName existed", () => {
+    expect(pullRequestRepositoryOf({ provider: "github", owner: "t3tools", name: "t3code" })).toBe(
+      "t3tools/t3code",
+    );
+    expect(pullRequestRepositoryOf({ provider: "github", owner: "t3tools" })).toBeNull();
+    expect(pullRequestRepositoryOf(null)).toBeNull();
   });
 });

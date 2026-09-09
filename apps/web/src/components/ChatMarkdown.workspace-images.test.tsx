@@ -41,6 +41,7 @@ vi.mock("../editorPreferences", () => ({
   usePreferredEditor: () => [null, vi.fn()],
 }));
 vi.mock("~/lib/openPullRequestLink", () => ({
+  changeRequestRepositoryOf: () => "",
   findProjectForChangeRequest: () => undefined,
   matchesLinkedPullRequestUrl: () => false,
   parseChangeRequestUrl: () => null,

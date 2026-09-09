@@ -1,6 +1,10 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { Spinner } from "~/components/ui/spinner";
-import { pullRequestHostOf, resolveEnvironmentMachineKind } from "@t3tools/contracts";
+import {
+  pullRequestHostOf,
+  pullRequestRepositoryOf,
+  resolveEnvironmentMachineKind,
+} from "@t3tools/contracts";
 import type {
   EnvironmentId,
   ProjectId,
@@ -372,10 +376,8 @@ function PullRequestsRouteView() {
     if (repository === undefined) return undefined;
     const identity = projects.find(
       (project) =>
-        project.repositoryIdentity?.owner &&
-        project.repositoryIdentity.name &&
-        `${project.repositoryIdentity.owner}/${project.repositoryIdentity.name}`.toLowerCase() ===
-          repository &&
+        project.repositoryIdentity &&
+        pullRequestRepositoryOf(project.repositoryIdentity)?.toLowerCase() === repository &&
         // The same `owner/name` can exist on two hosts. Without this the first match wins, and
         // a link that named its host opens the pull request from the other one.
         (search.host === undefined ||
